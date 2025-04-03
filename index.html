@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
+
+<script src="https://player.live-video.net/1.24.0/amazon-ivs-player.min.js"></script>
+
 <script>
 (function (m, a, z, e) {
   var s, t;
@@ -22,14 +25,24 @@
   m.mazeUniversalSnippetApiKey = e;
 })(window, document, 'https://snippet.testingmazeco.cloud/maze-universal-loader.js', '18aa8440-b712-4f27-a551-3f124520818e');
 </script>
+
   <title>A Meaningful Page Title</title>
 </head>
 <body>
+  <video id="ivs-video" controls playsinline></video>
+  
+  <script>
+    if (IVSPlayer.isPlayerSupported()) {
+        const player = IVSPlayer.create();
+        player.attachHTMLVideoElement(document.getElementById("ivs-video"));
+        player.load("https://12cd644f5677.us-east-1.playback.live-video.net/api/video/v1/us-east-1.211773933080.channel.I3VmU35jI9jS.m3u8"); // Replace with actual URL
+        player.play();
+    } else {
+        console.error("IVS Player is not supported on this browser.");
+    }
+</script>
 
-The content of the document......
-<video id="ivs-video" controls autoplay playsinline>
-    <source src="https://12cd644f5677.us-east-1.playback.live-video.net/api/video/v1/us-east-1.211773933080.channel.I3VmU35jI9jS.m3u8" type="application/x-mpegURL">
-</video>
+Hidden observers!
 
 </body>
 </html>
