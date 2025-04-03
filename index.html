@@ -30,18 +30,19 @@
 </head>
 <body>
   <video id="ivs-video" controls playsinline></video>
-  
-  <script>
-    if (IVSPlayer.isPlayerSupported()) {
-        const player = IVSPlayer.create();
-        player.attachHTMLVideoElement(document.getElementById("ivs-video"));
-        player.load("https://12cd644f5677.us-east-1.playback.live-video.net/api/video/v1/us-east-1.211773933080.channel.I3VmU35jI9jS.m3u8"); // Replace with actual URL
-        player.play();
-    } else {
-        console.error("IVS Player is not supported on this browser.");
-    }
-</script>
 
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            if (window.IVSPlayer && IVSPlayer.isPlayerSupported()) {
+                const player = IVSPlayer.create();
+                player.attachHTMLVideoElement(document.getElementById("ivs-video"));
+                player.load("https://your-ivs-stream-url.m3u8"); // Replace with actual IVS URL
+                player.play();
+            } else {
+                console.error("IVS Player is not supported on this browser.");
+            }
+        });
+    </script>
 Hidden observers!
 
 </body>
