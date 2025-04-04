@@ -31,16 +31,28 @@
 <body>
   <video id="ivs-video" controls playsinline></video>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            if (window.IVSPlayer && IVSPlayer.isPlayerSupported()) {
-                const player = IVSPlayer.create();
+<script>
+        function initializeIVSPlayer(attempt = 0, maxAttempts = 10) {
+            // Check if IVSPlayer is available
+            if (window.IVSPlayer && window.IVSPlayer.isPlayerSupported()) {
+                console.log("IVS Player loaded successfully!");
+                
+                const player = window.IVSPlayer.create();
                 player.attachHTMLVideoElement(document.getElementById("ivs-video"));
-                player.load("https://your-ivs-stream-url.m3u8"); // Replace with actual IVS URL
+                player.load("https://12cd644f5677.us-east-1.playback.live-video.net/api/video/v1/us-east-1.211773933080.channel.I3VmU35jI9jS.m3u8"); // Replace with actual IVS URL
                 player.play();
             } else {
-                console.error("IVS Player is not supported on this browser.");
+                if (attempt < maxAttempts) {
+                    console.warn(`IVS Player not loaded yet. Retrying (${attempt + 1}/${maxAttempts})...`);
+                    setTimeout(() => initializeIVSPlayer(attempt + 1, maxAttempts), 500);
+                } else {
+                    console.error("Failed to load IVS Player after multiple attempts.");
+                }
             }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            initializeIVSPlayer();
         });
     </script>
 Hidden observers!
