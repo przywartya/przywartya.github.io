@@ -34,7 +34,7 @@
 <script>
         function initializeIVSPlayer(attempt = 0, maxAttempts = 10) {
             // Check if IVSPlayer is available
-            if (window.IVSPlayer && window.IVSPlayer.isPlayerSupported()) {
+            if (window.IVSPlayer && window.IVSPlayer.isPlayerSupported) {
                 console.log("IVS Player loaded successfully!");
                 
                 const player = window.IVSPlayer.create();
