@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { STREAM_CHAT_CONSTANTS } from '../services/streamChatService';
-import ChatClient from './ChatClient';
+import ChatClient from './StreamChatClient';
 
-function UserSwitcher() {
+function StreamUserSwitcher() {
   const [currentUser, setCurrentUser] = useState(null);
 
   const switchUser = (newUserId, newToken) => {
@@ -33,4 +33,4 @@ function UserSwitcher() {
   );
 }
 
-export default UserSwitcher; 
+export default StreamUserSwitcher; 

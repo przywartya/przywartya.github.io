@@ -1,8 +1,8 @@
 import React from 'react';
-import UserSwitcher from './UserSwitcher';
+import StreamUserSwitcher from './StreamUserSwitcher';
 
 function StreamChatManager() {
-  return <UserSwitcher />;
+  return <StreamUserSwitcher />;
 }
 
 export default StreamChatManager; 
