@@ -11,6 +11,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-scripts": "5.0.1",
+    "stream-chat": "^8.58.0",
+    "stream-chat-react": "^12.13.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

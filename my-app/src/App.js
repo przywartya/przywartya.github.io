@@ -8,10 +8,10 @@ function App() {
     <div className="App">
       <header className="App-header">
         <div>
-          <CometChatManager />
           <div>
             <h1>Stream</h1>
           </div>
+          <CometChatManager />
         </div>
       </header>
     </div>
