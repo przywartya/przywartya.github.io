@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Chat Application Stack with multiple EC2 instances'
+
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+    Type: AWS::EC2::KeyPair::KeyName
+  VpcId:
+    Description: VPC ID
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Description: Subnet ID
+    Type: AWS::EC2::Subnet::Id
+
+Resources:
+  ChatSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for chat application
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3001
+          ToPort: 3002
+          CidrIp: 0.0.0.0/0
+
+  ChatInstance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0c55b159cbfafe1f0  # Amazon Linux 2 AMI
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref ChatSecurityGroup
+      SubnetId: !Ref SubnetId
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y docker
+          service docker start
+          usermod -a -G docker ec2-user
+          docker run -d \
+            -e PG_USER=${PG_USER} \
+            -e PG_HOST=${PG_HOST} \
+            -e PG_DATABASE=${PG_DATABASE} \
+            -e PG_PASSWORD=${PG_PASSWORD} \
+            -e PG_PORT=${PG_PORT} \
+            -p 3001:3001 \
+            your-ecr-repo/chat-backend:latest
+
+  ChatInstance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0c55b159cbfafe1f0  # Amazon Linux 2 AMI
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref ChatSecurityGroup
+      SubnetId: !Ref SubnetId
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y docker
+          service docker start
+          usermod -a -G docker ec2-user
+          docker run -d \
+            -e PG_USER=${PG_USER} \
+            -e PG_HOST=${PG_HOST} \
+            -e PG_DATABASE=${PG_DATABASE} \
+            -e PG_PASSWORD=${PG_PASSWORD} \
+            -e PG_PORT=${PG_PORT} \
+            -p 3002:3002 \
+            your-ecr-repo/chat-backend:latest
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+        - !Ref SubnetId
+      SecurityGroups:
+        - !Ref ChatSecurityGroup
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 3001
+      Protocol: HTTP
+      VpcId: !Ref VpcId
+      HealthCheckPath: /health
+      HealthCheckPort: 3001
+      HealthCheckProtocol: HTTP
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+Outputs:
+  LoadBalancerDNS:
+    Description: DNS name of the load balancer
+    Value: !GetAtt ApplicationLoadBalancer.DNSName 

@@ -3,17 +3,21 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
-const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
+const { Pool } = require('pg');
+const { createAdapter } = require('@socket.io/postgres-adapter');
 
-// Configure AWS
-AWS.config.update({
-  region: process.env.AWS_REGION,
-  // In production, use IAM roles or environment variables instead of hardcoded credentials
-  // AWS will automatically use the EC2 instance role when deployed
+// Configure PostgreSQL
+const pool = new Pool({
+  user: process.env.PG_USER,
+  host: process.env.PG_HOST,
+  database: process.env.PG_DATABASE,
+  password: process.env.PG_PASSWORD,
+  port: process.env.PG_PORT,
+  ssl: {
+    rejectUnauthorized: false // Required for RDS
+  }
 });
-
-const dynamoDB = new AWS.DynamoDB.DocumentClient();
 
 const app = express();
 app.use(cors());
@@ -27,10 +31,61 @@ const io = socketIo(server, {
   }
 });
 
+// Configure PostgreSQL adapter
+const pgAdapter = createAdapter(pool, {
+  channel: 'socket.io',
+  tableName: 'socket_io_attachments',
+  errorHandler: (error) => {
+    console.error('Socket.IO PostgreSQL adapter error:', error);
+  }
+});
+
+io.adapter(pgAdapter);
+
+// Add connection error handling
+io.engine.on("connection_error", (err) => {
+  console.error('Socket.IO connection error:', err);
+});
+
+// Add adapter error handling
+io.of("/").adapter.on("error", (error) => {
+  console.error('Socket.IO adapter error:', error);
+});
+
+// Mock users - in production, these would come from Neo4j
+const mockUsers = [
+  { id: '1', username: 'alice', displayName: 'Alice Smith' },
+  { id: '2', username: 'bob', displayName: 'Bob Johnson' },
+  { id: '3', username: 'charlie', displayName: 'Charlie Brown' }
+];
+
 // Store active users and their socket connections
 const activeUsers = {};
 // Map channels to users
 const channelUsers = {};
+
+// Add monitoring
+let messageCount = 0;
+let lastMinute = new Date().getMinutes();
+
+// Monitor message throughput
+io.of("/").adapter.on("create-room", (room) => {
+  console.log(`Room created: ${room}`);
+});
+
+io.of("/").adapter.on("delete-room", (room) => {
+  console.log(`Room deleted: ${room}`);
+});
+
+// Track message count per minute
+setInterval(() => {
+  const currentMinute = new Date().getMinutes();
+  if (currentMinute !== lastMinute) {
+    console.log(`Messages processed in last minute: ${messageCount}`);
+    messageCount = 0;
+    lastMinute = currentMinute;
+  }
+}, 1000);
 
 // Socket.io connection handler
 io.on('connection', (socket) => {
@@ -47,6 +102,12 @@ io.on('connection', (socket) => {
   
   // Handle joining a channel
   socket.on('joinChannel', async ({ channelId, username }) => {
+    // Check if channelId is valid
+    if (!channelId || channelId === 'undefined') {
+      socket.emit('error', { message: 'Invalid channel ID' });
+      return;
+    }
+
     // Leave previous channels
     Object.keys(socket.rooms).forEach(room => {
       if (room !== socket.id) socket.leave(room);
@@ -73,19 +134,13 @@ io.on('connection', (socket) => {
     
     // Fetch recent messages
     try {
-      const params = {
-        TableName: process.env.DYNAMODB_MESSAGES_TABLE,
-        IndexName: 'ChannelIdIndex',
-        KeyConditionExpression: 'channelId = :channelId',
-        ExpressionAttributeValues: {
-          ':channelId': channelId
-        },
-        Limit: 50,
-        ScanIndexForward: false // Get most recent messages
-      };
-      
-      const result = await dynamoDB.query(params).promise();
-      socket.emit('recentMessages', result.Items);
+      const result = await pool.query(
+        'SELECT * FROM messages WHERE channel_id = $1 ORDER BY created_at DESC LIMIT 50',
+        [channelId]
+      );
+      // Transform to camelCase
+      const transformedMessages = snakeToCamel(result.rows);
+      socket.emit('recentMessages', transformedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
       socket.emit('error', { message: 'Failed to fetch recent messages' });
@@ -94,27 +149,28 @@ io.on('connection', (socket) => {
   
   // Handle new message
   socket.on('message', async (messageData) => {
+    messageCount++;
     const { channelId, content, username } = messageData;
-    const timestamp = new Date().toISOString();
     const messageId = uuidv4();
+    const timestamp = new Date().toISOString();
     
-    const message = {
-      messageId,
-      channelId,
-      username,
-      content,
-      timestamp
-    };
-    
-    // Broadcast to channel
-    io.to(channelId).emit('newMessage', message);
-    
-    // Store in DynamoDB
     try {
-      await dynamoDB.put({
-        TableName: process.env.DYNAMODB_MESSAGES_TABLE,
-        Item: message
-      }).promise();
+      // Store in PostgreSQL
+      await pool.query(
+        'INSERT INTO messages (message_id, channel_id, username, content, created_at) VALUES ($1, $2, $3, $4, $5)',
+        [messageId, channelId, username, content, timestamp]
+      );
+      
+      const message = {
+        messageId,
+        channelId,
+        username,
+        content,
+        timestamp
+      };
+      
+      // Broadcast to channel
+      io.to(channelId).emit('newMessage', message);
     } catch (error) {
       console.error('Error saving message:', error);
       socket.emit('error', { message: 'Failed to save message' });
@@ -149,16 +205,33 @@ io.on('connection', (socket) => {
   });
 });
 
+// Helper function to convert snake_case to camelCase
+const snakeToCamel = (obj) => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => snakeToCamel(item));
+  }
+
+  return Object.keys(obj).reduce((acc, key) => {
+    const camelKey = key.replace(/_([a-z])/g, (match, p1) => p1.toUpperCase());
+    acc[camelKey] = snakeToCamel(obj[key]);
+    return acc;
+  }, {});
+};
+
 // API Routes
 // Get available channels
 app.get('/channels', async (req, res) => {
   try {
-    const params = {
-      TableName: process.env.DYNAMODB_CHANNELS_TABLE
-    };
-    
-    const result = await dynamoDB.scan(params).promise();
-    res.json(result.Items);
+    const result = await pool.query('SELECT * FROM channels ORDER BY created_at DESC');
+    console.log('Fetched channels:', result.rows);
+    // Transform to camelCase
+    const transformedChannels = snakeToCamel(result.rows);
+    console.log('Transformed channels:', transformedChannels);
+    res.json(transformedChannels);
   } catch (error) {
     console.error('Error fetching channels:', error);
     res.status(500).json({ error: 'Failed to fetch channels' });
@@ -169,28 +242,19 @@ app.get('/channels', async (req, res) => {
 app.post('/channels', async (req, res) => {
   const { name, description, createdBy } = req.body;
   const channelId = uuidv4();
-  const timestamp = new Date().toISOString();
   
   try {
-    const params = {
-      TableName: process.env.DYNAMODB_CHANNELS_TABLE,
-      Item: {
-        channelId,
-        name,
-        description,
-        createdBy,
-        timestamp,
-        memberCount: 0
-      }
-    };
+    await pool.query(
+      'INSERT INTO channels (channel_id, name, description, created_by) VALUES ($1, $2, $3, $4)',
+      [channelId, name, description, createdBy]
+    );
     
-    await dynamoDB.put(params).promise();
     res.status(201).json({ 
       channelId, 
       name, 
       description, 
-      createdBy, 
-      timestamp 
+      createdBy,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('Error creating channel:', error);
@@ -202,25 +266,39 @@ app.post('/channels', async (req, res) => {
 app.get('/channels/:channelId', async (req, res) => {
   const { channelId } = req.params;
   
+  // Validate channelId
+  if (!channelId || channelId === 'undefined') {
+    return res.status(400).json({ error: 'Invalid channel ID' });
+  }
+  
   try {
-    const params = {
-      TableName: process.env.DYNAMODB_CHANNELS_TABLE,
-      Key: {
-        channelId
-      }
-    };
+    const result = await pool.query(
+      'SELECT * FROM channels WHERE channel_id = $1',
+      [channelId]
+    );
     
-    const result = await dynamoDB.get(params).promise();
-    
-    if (!result.Item) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Channel not found' });
     }
     
-    res.json(result.Item);
+    // Transform to camelCase
+    const transformedChannel = snakeToCamel(result.rows[0]);
+    
+    res.json(transformedChannel);
   } catch (error) {
     console.error('Error fetching channel:', error);
     res.status(500).json({ error: 'Failed to fetch channel' });
   }
+});
+
+// Get mock users
+app.get('/users', (req, res) => {
+  res.json(mockUsers);
+});
+
+// Add health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy' });
 });
 
 // Start the server

@@ -184,4 +184,20 @@
   padding: 10px 15px;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.instance-info {
+  background-color: #f0f0f0;
+  padding: 8px;
+  border-radius: 4px;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.instance-info div {
+  margin: 4px 0;
+}
+
+.instance-info strong {
+  color: #666;
 } 

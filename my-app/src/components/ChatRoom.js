@@ -9,6 +9,10 @@ function ChatRoom({ user, username }) {
   const { channelId } = useParams();
   const navigate = useNavigate();
   
+  console.log('ChatRoom component loaded with channelId:', channelId);
+  console.log('Current user:', user);
+  console.log('Connected to server:', process.env.REACT_APP_API_URL);
+  
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [channelInfo, setChannelInfo] = useState(null);
@@ -119,11 +123,13 @@ function ChatRoom({ user, username }) {
   useEffect(() => {
     const fetchChannelInfo = async () => {
       try {
+        console.log('Fetching channel info for channelId:', channelId);
         const response = await fetch(`${API_URL}/channels/${channelId}`);
         if (!response.ok) {
           throw new Error('Channel not found');
         }
         const data = await response.json();
+        console.log('Received channel info:', data);
         setChannelInfo(data);
       } catch (error) {
         console.error('Error fetching channel:', error);
@@ -200,76 +206,83 @@ function ChatRoom({ user, username }) {
   }
 
   return (
-    <div className="chat-room-container">
-      <div className="chat-sidebar">
-        <div className="channel-info">
-          <h2>{channelInfo?.name || 'Channel'}</h2>
-          <p>{channelInfo?.description}</p>
+    <div className="chat-room">
+      <div className="chat-header">
+        <h2>{channelInfo?.name || 'Loading...'}</h2>
+        <div className="instance-info">
+          <div><strong>Instance:</strong> {process.env.REACT_APP_INSTANCE_NAME}</div>
+          <div><strong>Connected to:</strong> {process.env.REACT_APP_API_URL}</div>
         </div>
-        <div className="channel-users">
-          <h3>Members ({users.length})</h3>
-          <ul>
-            {users.map((uname) => (
-              <li key={uname} className={uname === username ? 'current-user' : ''}>
-                {uname}
-                {uname === username && ' (you)'}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <button className="leave-button" onClick={handleLeaveChannel}>
-          Leave Channel
-        </button>
+        <button onClick={handleLeaveChannel}>Leave Channel</button>
       </div>
-      
-      <div className="chat-main">
-        <div className="messages-container">
-          {messages.length === 0 ? (
-            <div className="no-messages">
-              <p>No messages yet. Be the first to say hello!</p>
-            </div>
-          ) : (
-            <div className="messages-list">
-              {messages.map((message) => (
-                <div 
-                  key={message.messageId} 
-                  className={`message ${message.username === username ? 'own-message' : ''}`}
-                >
-                  <div className="message-header">
-                    <span className="message-username">
-                      {message.username === username ? 'You' : message.username}
-                    </span>
-                    <span className="message-time">
-                      {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <div className="message-content">{message.content}</div>
-                </div>
+      <div className="chat-room-container">
+        <div className="chat-sidebar">
+          <div className="channel-info">
+            <h2>{channelInfo?.name || 'Channel'}</h2>
+            <p>{channelInfo?.description}</p>
+          </div>
+          <div className="channel-users">
+            <h3>Members ({users.length})</h3>
+            <ul>
+              {users.map((uname) => (
+                <li key={uname} className={uname === username ? 'current-user' : ''}>
+                  {uname}
+                  {uname === username && ' (you)'}
+                </li>
               ))}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-          
-          {typingUsers.length > 0 && (
-            <div className="typing-indicator">
-              {typingUsers.filter(name => name !== username).join(', ')}
-              {typingUsers.filter(name => name !== username).length === 1 ? ' is typing...' : ' are typing...'}
-            </div>
-          )}
+            </ul>
+          </div>
         </div>
         
-        <form className="message-form" onSubmit={handleSendMessage}>
-          <input
-            type="text"
-            value={newMessage}
-            onChange={handleInputChange}
-            placeholder="Type a message..."
-            className="message-input"
-          />
-          <button type="submit" className="send-button" disabled={!newMessage.trim()}>
-            Send
-          </button>
-        </form>
+        <div className="chat-main">
+          <div className="messages-container">
+            {messages.length === 0 ? (
+              <div className="no-messages">
+                <p>No messages yet. Be the first to say hello!</p>
+              </div>
+            ) : (
+              <div className="messages-list">
+                {messages.map((message) => (
+                  <div 
+                    key={message.messageId} 
+                    className={`message ${message.username === username ? 'own-message' : ''}`}
+                  >
+                    <div className="message-header">
+                      <span className="message-username">
+                        {message.username === username ? 'You' : message.username}
+                      </span>
+                      <span className="message-time">
+                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="message-content">{message.content}</div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+            
+            {typingUsers.length > 0 && (
+              <div className="typing-indicator">
+                {typingUsers.filter(name => name !== username).join(', ')}
+                {typingUsers.filter(name => name !== username).length === 1 ? ' is typing...' : ' are typing...'}
+              </div>
+            )}
+          </div>
+          
+          <form className="message-form" onSubmit={handleSendMessage}>
+            <input
+              type="text"
+              value={newMessage}
+              onChange={handleInputChange}
+              placeholder="Type a message..."
+              className="message-input"
+            />
+            <button type="submit" className="send-button" disabled={!newMessage.trim()}>
+              Send
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

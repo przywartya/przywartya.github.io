@@ -1,0 +1,67 @@
+.user-switcher-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background-color: #2c3e50;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.user-switcher-container h2 {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: #ecf0f1;
+}
+
+.users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.user-card {
+  background-color: #34495e;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.user-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+.user-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #3498db;
+  color: white;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem auto;
+}
+
+.user-card h3 {
+  color: #ecf0f1;
+  margin: 0 0 0.5rem 0;
+}
+
+.user-card p {
+  color: #95a5a6;
+  margin: 0;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 2rem;
+  color: #ecf0f1;
+}
+
+.error {
+  color: #e74c3c;
+} 

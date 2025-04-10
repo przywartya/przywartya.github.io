@@ -18,6 +18,7 @@ function ChannelList({ user }) {
   const fetchChannels = async () => {
     try {
       const response = await axios.get(`${API_URL}/channels`);
+      console.log('Channels from API:', response.data);
       setChannels(response.data);
       setLoading(false);
     } catch (error) {
@@ -28,6 +29,7 @@ function ChannelList({ user }) {
   };
 
   const handleJoinChannel = (channelId) => {
+    console.log('Joining channel with ID:', channelId);
     navigate(`/channels/${channelId}`);
   };
 
