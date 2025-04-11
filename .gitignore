@@ -1,2 +1,11 @@
 node_modules
 node_modules
+
+# Environment variables
+.env
+.env.*
+
+# Private keys and certificates
+*.pem
+*.key
+*.crt
